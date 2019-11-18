@@ -17,20 +17,21 @@ import numpy as np
 def get_args():
     parser = argparse.ArgumentParser(
         """Implementation of the model described in the paper: Hierarchical Attention Networks for Document Classification""")
-    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--num_epoches", type=int, default=100)
-    parser.add_argument("--lr", type=float, default=0.1)
+    parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--word_hidden_size", type=int, default=50)
-    parser.add_argument("--sent_hidden_size", type=int, default=50)
+    parser.add_argument("--word_hidden_size", type=int, default=8)
+    parser.add_argument("--sent_hidden_size", type=int, default=16)
+    parser.add_argument("--head_num", type=int, default=8)
     parser.add_argument("--es_min_delta", type=float, default=0.0,
                         help="Early stopping's parameter: minimum change loss to qualify as an improvement")
     parser.add_argument("--es_patience", type=int, default=5,
                         help="Early stopping's parameter: number of epochs with no improvement after which training will be stopped. Set to 0 to disable this technique.")
-    parser.add_argument("--train_set", type=str, default="data/train.csv")
-    parser.add_argument("--test_set", type=str, default="data/test.csv")
+    parser.add_argument("--train_set", type=str, default="/home/ingrid/Data/ag_news_csv/train.csv")
+    parser.add_argument("--test_set", type=str, default="/home/ingrid/Data/ag_news_csv/test.csv")
     parser.add_argument("--test_interval", type=int, default=1, help="Number of epoches between testing phases")
-    parser.add_argument("--word2vec_path", type=str, default="data/glove.6B.50d.txt")
+    parser.add_argument("--word2vec_path", type=str, default="/home/ingrid/Model/glove/glove.6B.50d.txt")
     parser.add_argument("--log_path", type=str, default="tensorboard/han_voc")
     parser.add_argument("--saved_path", type=str, default="trained_models")
     args = parser.parse_args()
@@ -57,12 +58,18 @@ def train(opt):
     test_set = MyDataset(opt.test_set, opt.word2vec_path, max_sent_length, max_word_length)
     test_generator = DataLoader(test_set, **test_params)
 
-    model = HierAttNet(opt.word_hidden_size, opt.sent_hidden_size, opt.batch_size, training_set.num_classes,
-                       opt.word2vec_path, max_sent_length, max_word_length)
+    model = HierAttNet(opt.head_num,
+                       opt.word_hidden_size,
+                       opt.sent_hidden_size,
+                       opt.batch_size,
+                       training_set.num_classes,
+                       opt.word2vec_path,
+                       max_sent_length,
+                       max_word_length)
 
 
     if os.path.isdir(opt.log_path):
-        shutil.rmtree(opt.log_path)
+        shutil.rmtree(opt.log_path) # 递归删除文件夹下的所有子文件夹
     os.makedirs(opt.log_path)
     writer = SummaryWriter(opt.log_path)
     # writer.add_graph(model, torch.zeros(opt.batch_size, max_sent_length, max_word_length))
@@ -82,7 +89,6 @@ def train(opt):
                 feature = feature.cuda()
                 label = label.cuda()
             optimizer.zero_grad()
-            model._init_hidden_state()
             predictions = model(feature)
             loss = criterion(predictions, label)
             loss.backward()

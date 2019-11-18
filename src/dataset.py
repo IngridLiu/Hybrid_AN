@@ -10,7 +10,7 @@ import numpy as np
 
 class MyDataset(Dataset):
 
-    def __init__(self, data_path, dict_path, max_length_sentences=30, max_length_word=35):
+    def __init__(self, data_path, dict_path, max_length_sentence=30, max_length_word=35):
         super(MyDataset, self).__init__()
 
         texts, labels = [], []
@@ -30,33 +30,34 @@ class MyDataset(Dataset):
         self.dict = pd.read_csv(filepath_or_buffer=dict_path, header=None, sep=" ", quoting=csv.QUOTE_NONE,
                                 usecols=[0]).values
         self.dict = [word[0] for word in self.dict]
-        self.max_length_sentences = max_length_sentences
+        self.max_length_sentence = max_length_sentence
         self.max_length_word = max_length_word
         self.num_classes = len(set(self.labels))
 
     def __len__(self):
         return len(self.labels)
 
+    # 获取model的单个输入和label
     def __getitem__(self, index):
         label = self.labels[index]
         text = self.texts[index]
         document_encode = [
             [self.dict.index(word) if word in self.dict else -1 for word in word_tokenize(text=sentences)] for sentences
             in
-            sent_tokenize(text=text)]
+            sent_tokenize(text=text)] # 对文段中的每一个word标记其在dict中的index
 
-        for sentences in document_encode:
-            if len(sentences) < self.max_length_word:
-                extended_words = [-1 for _ in range(self.max_length_word - len(sentences))]
-                sentences.extend(extended_words)
+        for sentence in document_encode:
+            if len(sentence) < self.max_length_word:
+                extended_words = [-1 for _ in range(self.max_length_word - len(sentence))]
+                sentence.extend(extended_words)
 
-        if len(document_encode) < self.max_length_sentences:
-            extended_sentences = [[-1 for _ in range(self.max_length_word)] for _ in
-                                  range(self.max_length_sentences - len(document_encode))]
-            document_encode.extend(extended_sentences)
+        if len(document_encode) < self.max_length_sentence:
+            extended_sentence = [[-1 for _ in range(self.max_length_word)] for _ in
+                                  range(self.max_length_sentence - len(document_encode))]
+            document_encode.extend(extended_sentence)
 
-        document_encode = [sentences[:self.max_length_word] for sentences in document_encode][
-                          :self.max_length_sentences]
+        document_encode = [sentence[:self.max_length_word] for sentence in document_encode][
+                          :self.max_length_sentence]
 
         document_encode = np.stack(arrays=document_encode, axis=0)
         document_encode += 1

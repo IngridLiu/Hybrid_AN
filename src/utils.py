@@ -37,6 +37,10 @@ def matrix_mul(input, weight, bias=False):
 def element_wise_mul(input1, input2):
 
     feature_list = []
+    '''
+     f_output: [max_word_length ,batch_size, 2 * word_hidden_size]
+     output: [max_word_length, batch_size]
+     '''
     for feature_1, feature_2 in zip(input1, input2):
         feature_2 = feature_2.unsqueeze(1).expand_as(feature_1)
         feature = feature_1 * feature_2
