@@ -8,9 +8,10 @@ from src.word_att_model import WordAttNet
 
 
 class HierAttNet(nn.Module):
-    def __init__(self, head_num, word_hidden_size, sent_hidden_size, batch_size, num_classes, pretrained_word2vec_path,
+    def __init__(self, add_stock, head_num, word_hidden_size, sent_hidden_size, batch_size, num_classes, pretrained_word2vec_path,
                  max_sent_length, max_word_length):
         super(HierAttNet, self).__init__()
+        self.add_stock = add_stock
         self.head_num = head_num
         self.batch_size = batch_size
         self.word_hidden_size = word_hidden_size
@@ -20,7 +21,7 @@ class HierAttNet(nn.Module):
         self.word_att_net = WordAttNet(pretrained_word2vec_path, head_num, word_hidden_size)
         self.sent_att_net = SentAttNet(head_num, sent_hidden_size, word_hidden_size, num_classes)
 
-    def forward(self, input):
+    def forward(self, news_input, stock_input):
         '''
         params:
             :param input: [batch_size, max_sent_length, max_word_length]
@@ -28,8 +29,8 @@ class HierAttNet(nn.Module):
             :return output: []
         '''
         word_output_list = []
-        input = input.permute(1, 0, 2)
-        for i in input:
+        news_input = news_input.permute(1, 0, 2)
+        for i in news_input:
             # i: [batch_size, max_word_length]
             word_output = self.word_att_net(i)
             word_output = word_output.unsqueeze(0)
@@ -38,6 +39,10 @@ class HierAttNet(nn.Module):
 
         # word_outputs: [batch_size, max_sent_length, 2 * hidden_size]
         sent_output = self.sent_att_net(word_outputs)
+
+        if self.add_stock:
+            print("")
+
 
         # sent_output:
         return sent_output
