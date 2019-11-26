@@ -18,11 +18,12 @@ def get_args():
     parser = argparse.ArgumentParser(
         """Implementation of the model described in the paper: Hierarchical Attention Networks for Document Classification""")
     # training params
-    parser.add_argument("--model_type", type=str, default="sent_ori_han")    # model_type : ori_han; sent_ori_han;
+    parser.add_argument("--model_type", type=str, default="muil_han")    # model_type : ori_han; sent_ori_han; muil_han; sent_muil_han;
     parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--num_epoches", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("--dropout", type=float, default=0)
     parser.add_argument("--es_min_delta", type=float, default=0.0,
                         help="Early stopping's parameter: minimum change loss to qualify as an improvement")
     parser.add_argument("--es_patience", type=int, default=5,
@@ -32,7 +33,7 @@ def get_args():
     parser.add_argument("--days_hidden_size", type=int, default=16)
     parser.add_argument("--news_hidden_size", type=int, default=8)
     parser.add_argument("--sent_hidden_size", type=int, default=4)
-    parser.add_argument("--head_num", type=int, default=1)
+    parser.add_argument("--head_num", type=int, default=8)
     parser.add_argument("--days_num", type=int, default=12)
     # data params
     parser.add_argument("--train_set", type=str, default="/home/ingrid/Data/stockpredict_20191105/train_data.csv")
@@ -61,6 +62,7 @@ def train(opt):
                    "drop_last": False}
     # training dataset info
     max_news_length, max_sent_length, max_word_length = get_max_lengths(opt.train_set)
+    stock_length = 9
     training_set = MyDataset(data_path=opt.train_set,
                              dict_path=opt.word2vec_path,
                              max_news_length=max_news_length,
@@ -82,14 +84,25 @@ def train(opt):
                         days_hidden_size=opt.days_hidden_size,
                         news_hidden_size=opt.news_hidden_size,
                         num_classes=training_set.num_classes,
-                        pretrained_word2vec_path=opt.word2vec_path)
+                        pretrained_word2vec_path=opt.word2vec_path,
+                        dropout=opt.dropout)
     elif opt.model_type == "sent_ori_han":
         model = Sent_Ori_HAN(days_num=opt.days_num,
                              days_hidden_size=opt.days_hidden_size,
                              news_hidden_size=opt.news_hidden_size,
                              sent_hidden_size=opt.sent_hidden_size,
                              num_classes=training_set.num_classes,
-                             pretrained_word2vec_path=opt.word2vec_path)
+                             pretrained_word2vec_path=opt.word2vec_path,
+                             dropout=opt.dropout)
+    elif opt.model_type == "muil_han":
+        model = Muil_HAN(head_num=opt.head_num,
+                         days_num=opt.days_num,
+                         days_hidden_size=opt.days_hidden_size,
+                         news_hidden_size=opt.news_hidden_size,
+                         num_classes=training_set.num_classes,
+                         pretrained_word2vec_path=opt.word2vec_path,
+                         dropout=opt.dropout)
+
 
 
     # other setting
@@ -119,6 +132,8 @@ def train(opt):
             if opt.model_type == "ori_han":
                 predictions = model(days_news)
             elif opt.model_type == "sent_ori_han":
+                predictions = model(days_news)
+            elif opt.model_type == "muil_han":
                 predictions = model(days_news)
             loss = criterion(predictions, torch.tensor(label))
             loss.backward()
