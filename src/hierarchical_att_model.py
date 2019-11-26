@@ -3,13 +3,19 @@
 """
 import torch
 import torch.nn as nn
-from src.sent_att_model import SentAttNet
-from src.word_att_model import WordAttNet
+from src.word_att_model import WordAttNet, SentAttNet
 
 
 class HierAttNet(nn.Module):
-    def __init__(self, add_stock, head_num, word_hidden_size, sent_hidden_size, batch_size, num_classes, pretrained_word2vec_path,
-                 max_sent_length, max_word_length):
+    def __init__(self, add_stock,
+                 head_num,
+                 word_hidden_size,
+                 sent_hidden_size,
+                 batch_size,
+                 num_classes,
+                 pretrained_word2vec_path,
+                 max_sent_length,
+                 max_word_length):
         super(HierAttNet, self).__init__()
         self.add_stock = add_stock
         self.head_num = head_num

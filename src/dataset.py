@@ -10,7 +10,7 @@ import numpy as np
 
 class MyDataset(Dataset):
 
-    def __init__(self, data_path, dict_path, max_news_length = 10, max_sent_length = 10, max_word_length = 10, days_num = 12):
+    def __init__(self, data_path, dict_path, max_news_length=10, max_sent_length=10, max_word_length=10, days_num = 12):
         super(MyDataset, self).__init__()
 
         newses, stocks, labels = [], [], []
@@ -23,7 +23,7 @@ class MyDataset(Dataset):
             for idx, line in enumerate(reader):
                 news = str(line[-1])
                 stock = [float(x) for x in line[3:-2]]
-                label = float(line[2])
+                label = int(line[2])
                 newses.append(news)
                 stocks.append(stock)
                 labels.append(label)
@@ -91,15 +91,14 @@ class MyDataset(Dataset):
                 new_news = []
                 for sent in news:
                     new_sent = sent[:self.max_word_length]
-                    new_sent = new_sent + 1
                     new_news.append(new_sent)
-                new_newses.append(new_news)
-            new_days_newses_encode.append(new_newses)
+                new_newses.append(new_news[:self.max_sent_length])
+            new_days_newses_encode.append(new_newses[:self.max_news_length])
         days_newses_encode = new_days_newses_encode
 
         # document_encode = [sentence[:self.max_length_word] for sentence in document_encode][:self.max_length_sentence]
         days_newses_encode = np.stack(arrays=days_newses_encode, axis=0)
-        # days_newses_encode += 1
+        days_newses_encode += 1
 
         # prepare stock date
         if len(days_stock) < days_num:
@@ -107,7 +106,8 @@ class MyDataset(Dataset):
             extended_stock = [[-1 for _ in range(stock_length)]
                               for _ in range(days_num - len(days_stock))]
             days_stock.extend(extended_stock)
-        days_stock = np.array(days_stock)
+        days_stock = np.stack(days_stock, axis=0)
+        days_stock += 1
 
         return days_newses_encode.astype(np.int64), days_stock.astype(np.float32), label
 

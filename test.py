@@ -16,7 +16,7 @@ import numpy as np
 def get_args():
     parser = argparse.ArgumentParser(
         """Implementation of the model described in the paper: Hierarchical Attention Networks for Document Classification""")
-    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--data_path", type=str, default="data/test.csv")
     parser.add_argument("--pre_trained_model", type=str, default="trained_models/whole_model_han")
     parser.add_argument("--word2vec_path", type=str, default="data/glove.6B.50d.txt")

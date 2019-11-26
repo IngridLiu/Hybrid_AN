@@ -108,5 +108,11 @@ print("Success to handle stock data...")
 
 # 合并news和stock数据
 data_df = pd.merge(new_stock_df, new_news_df, on='date')
-data_df.to_csv(path_or_buf=data_root + "new_data.csv", sep=',', index_label='index')
 print("Success to merge news and stock data...")
+
+# 将数据分为训练数据集和测试数据集
+train_data_df = data_df[:int(0.7*len(data_df))]
+train_data_df.to_csv(path_or_buf=data_root + "train_data.csv", sep=',', index_label='index')
+test_data_df = data_df[int(0.7*len(data_df)):]
+train_data_df.to_csv(path_or_buf=data_root + "test_data.csv", sep=',', index_label='index')
+print("Success to split data and save them...")

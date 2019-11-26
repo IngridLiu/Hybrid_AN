@@ -8,7 +8,35 @@ import math
 
 # scaled attention
 class Attention():
+    # basic attention
+    def basic_attention(self, query, key, value, mask=None, dropout=None):
+        '''
+        Compute 'Scaled Dot Product Attention
 
+        params:
+            :param query: [batch_size, max_length, 2*hidden_size]
+            :param key: [batch_size, max_length, 2*hidden_size]
+            :param value: [batch_size, max_length, 2*hidden_size]
+            :param mask:
+            :param dropout:
+        return:
+            :return output: [batch_size, max_length, 2*hidden_size]
+            :return p_attn: []
+        '''
+
+        scores = torch.matmul(query, key.transpose(-2, -1))
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, -1e9)
+        p_attn = F.softmax(scores, dim=-1)
+        if dropout is not None:
+            p_attn = dropout(p_attn)
+        output = torch.matmul(p_attn, value).sum(dim=1)
+
+        # output: [batch_size, 2*hidden_size]
+        # p_attn: [batch_size, max_length, max_length]
+        return output, p_attn
+
+    # scaled attention
     def scaled_attention(self, query, key, value, mask=None, dropout=None):
         '''
         Compute 'Scaled Dot Product Attention
@@ -20,7 +48,7 @@ class Attention():
             :param mask:
             :param dropout:
         return:
-            :return output: [batch_size, max_word_length, 2*word_hidden_size]
+            :return output: [batch_size, max_length, 2*hidden_size]
             :return p_attn: []
         '''
 
@@ -58,13 +86,14 @@ class BasicAttention(nn.Module, Attention):
             :return weights: []
         '''
 
-        batch_size = query.size(0)
-        outputs, weights = self.attention.scaled_attention(query, key, value)
+        outputs, weights = self.attention.basic_attention(query, key, value)
         outputs = self.linear(outputs)
 
         # outputs: [batch_size, 2*hidden_size]
         # weights: [batch_size, max_length, max_word_length]
         return outputs, weights
+
+
 
 # mutil-head attention
 class MutilHeadAttention(nn.Module, Attention):
@@ -89,11 +118,9 @@ class MutilHeadAttention(nn.Module, Attention):
             mask = mask.unsqueeze(1)
         batch_size = query.size(0)
         # 第二步是将这一批次的数据进行变形 self.d_model => h x hidden_size
-
         query = self.linear(query).view(batch_size, -1, self.head_num, self.hidden_size) # [batch_size, max_length, d_model]
         key = self.linear(key).view(batch_size, -1, self.head_num, self.hidden_size)
         value = self.linear(value).view(batch_size, -1, self.head_num, self.hidden_size)
-
         # 第三步，针对所有变量计算scaled dot product attention
         x, self.attn = self.attention.scaled_attention(query, key, value, mask=mask, dropout=self.dropout)
         # 最后，将attention计算结果串联在一起，其实对张量进行一次变形：
