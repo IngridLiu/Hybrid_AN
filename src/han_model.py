@@ -21,7 +21,9 @@ class Ori_HAN(nn.Module):
         self.num_classes = num_classes
         self.pretrained_word2vec_path = pretrained_word2vec_path
         self.dropout = dropout
-        self.days_att_net = Ori_DaysNewsAttNet(days_hidden_size, news_hidden_size)
+        self.days_att_net = Ori_DaysNewsAttNet(days_hidden_size=days_hidden_size,
+                                               news_hidden_size=news_hidden_size,
+                                               dropout=dropout)
         self.news_att_net = Ori_NewsAttNet(pretrained_word2vec_path, news_hidden_size)
 
     def forward(self, days_newses_input):

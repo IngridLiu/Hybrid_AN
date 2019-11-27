@@ -13,12 +13,13 @@ import csv
 
 # Ori_DaysAttNet
 class Ori_DaysNewsAttNet(nn.Module):
-    def __init__(self, days_hidden_size=16, news_hidden_size=8):
+    def __init__(self, days_hidden_size=16, news_hidden_size=8, dropout=0):
         super(Ori_DaysNewsAttNet, self).__init__()
         self.days_hidden_size = days_hidden_size
         self.news_hidden_size = news_hidden_size
+        self.dropout = dropout
         self.gru = nn.GRU(2 * news_hidden_size, days_hidden_size, bidirectional=True)
-        self.attention = BasicAttention(days_hidden_size)
+        self.attention = BasicAttention(days_hidden_size=days_hidden_size, dropout=dropout)
 
     def forward(self, input):
         '''
@@ -47,7 +48,9 @@ class Muil_DaysNewsAttNet(nn.Module):
         self.days_hidden_size = days_hidden_size
         self.news_hidden_size = news_hidden_size
         self.gru = nn.GRU(2 * news_hidden_size, days_hidden_size, bidirectional=True)
-        self.attention = MutilHeadAttention(head_num=head_num, hidden_size=days_hidden_size, dropout= dropout)
+        self.attention = MutilHeadAttention(head_num=head_num,
+                                            hidden_size=days_hidden_size,
+                                            dropout= dropout)
         # self.fc = nn.Linear(2 * days_hidden_size, num_classes)
 
     def forward(self, input):
@@ -71,7 +74,7 @@ class Muil_DaysNewsAttNet(nn.Module):
 # News Attention Layer
 # Ori_NewsAttNet
 class Ori_NewsAttNet(nn.Module):
-    def __init__(self, word2vec_path, hidden_size=8):
+    def __init__(self, word2vec_path, hidden_size=8, dropout=0):
         super(Ori_NewsAttNet, self).__init__()
         dict = pd.read_csv(filepath_or_buffer=word2vec_path, header=None, sep=" ", quoting=csv.QUOTE_NONE).values[:, 1:]
         dict_len, embed_size = dict.shape
@@ -79,9 +82,10 @@ class Ori_NewsAttNet(nn.Module):
         unknown_word = np.zeros((1, embed_size))
         dict = torch.from_numpy(np.concatenate([unknown_word, dict], axis=0).astype(np.float))
 
+        self.dropout = dropout
         self.emb = nn.Embedding(num_embeddings=dict_len, embedding_dim=embed_size).from_pretrained(dict)
         self.linear = nn.Linear(embed_size, 2* hidden_size)
-        self.attention = BasicAttention(hidden_size)
+        self.attention = BasicAttention(hidden_size=hidden_size, dropout=dropout)
 
     def forward(self, input):
         '''
@@ -117,7 +121,9 @@ class Muil_NewsAttNet(nn.Module):
 
         self.emb = nn.Embedding(num_embeddings=dict_len, embedding_dim=embed_size).from_pretrained(dict)
         self.linear = nn.Linear(embed_size, 2 * news_hidden_size)
-        self.attention = MutilHeadAttention(head_num=head_num, hidden_size=news_hidden_size, dropout=dropout)
+        self.attention = MutilHeadAttention(head_num=head_num,
+                                            hidden_size=news_hidden_size,
+                                            dropout=dropout)
 
     def forward(self, input):
         emb_output = self.emb(input)
@@ -132,13 +138,13 @@ class Muil_NewsAttNet(nn.Module):
 
 # News Attention Net with sentense layer and basic attention
 class Sent_Ori_NewsAttNet(nn.Module):
-    def __init__(self, news_hidden_size=8, sent_hidden_size=4):
+    def __init__(self, news_hidden_size=8, sent_hidden_size=4, dropout=0):
         super(Sent_Ori_NewsAttNet, self).__init__()
         self.news_hidden_size = news_hidden_size
         self.sent_hidden_size = sent_hidden_size
 
         self.gru = nn.GRU(2 * sent_hidden_size, news_hidden_size, bidirectional=True)
-        self.attention = BasicAttention(news_hidden_size)
+        self.attention = BasicAttention(hidden_size=news_hidden_size, dropout=dropout)
         self.fc = nn.Linear(2 * news_hidden_size, 2 * news_hidden_size)
 
     def forward(self, input):
@@ -161,14 +167,17 @@ class Sent_Ori_NewsAttNet(nn.Module):
 
 # News Attention Net with sentense layer and basic attention
 class Sent_Muil_NewsAttNet(nn.Module):
-    def __init__(self, head_num = 1, news_hidden_size=8, sent_hidden_size=4):
+    def __init__(self, head_num = 1, news_hidden_size=8, sent_hidden_size=4, dropout=0):
         super(Sent_Muil_NewsAttNet, self).__init__()
         self.head_num = head_num
         self.news_hidden_size = 8
         self.sent_hidden_size = 4
+        self.dropout = dropout
 
         self.gru = nn.GRU(2 * sent_hidden_size, news_hidden_size, bidirectional=True)
-        self.attention = MutilHeadAttention(head_num=head_num, hidden_size=news_hidden_size, dropout=0)
+        self.attention = MutilHeadAttention(head_num=head_num,
+                                            hidden_size=news_hidden_size,
+                                            dropout=0)
         self.fc = nn.Linear(2 * news_hidden_size, 2 * news_hidden_size)
 
     def forward(self, input):
@@ -191,7 +200,7 @@ class Sent_Muil_NewsAttNet(nn.Module):
 
 # Sent Attention Layer with basic attention
 class Ori_SentAttNet(nn.Module):
-    def __init__(self, word2vec_path, sent_hidden_size=4):
+    def __init__(self, word2vec_path, sent_hidden_size=4, dropout=0):
         super(Ori_SentAttNet, self).__init__()
         dict = pd.read_csv(filepath_or_buffer=word2vec_path, header=None, sep=" ", quoting=csv.QUOTE_NONE).values[:, 1:]
         dict_len, embed_size = dict.shape
@@ -201,7 +210,7 @@ class Ori_SentAttNet(nn.Module):
 
         self.emb = nn.Embedding(num_embeddings=dict_len, embedding_dim=embed_size).from_pretrained(dict)
         self.linear = nn.Linear(embed_size, 2* sent_hidden_size)
-        self.attention = BasicAttention(sent_hidden_size)
+        self.attention = BasicAttention(hidden_size=sent_hidden_size, dropout=dropout)
 
     def forward(self, input):
         '''
@@ -222,7 +231,7 @@ class Ori_SentAttNet(nn.Module):
 
 # Sent Attention Layer with muilty head attention
 class Muil_SentAttNet(nn.Module):
-    def __init__(self, word2vec_path, head_num=1, sent_hidden_size=4):
+    def __init__(self, word2vec_path, head_num=1, sent_hidden_size=4, dropout=0):
         super(Muil_SentAttNet, self).__init__()
         dict = pd.read_csv(filepath_or_buffer=word2vec_path, header=None, sep=" ", quoting=csv.QUOTE_NONE).values[:, 1:]
         dict_len, embed_size = dict.shape
@@ -234,7 +243,7 @@ class Muil_SentAttNet(nn.Module):
 
         self.emb = nn.Embedding(num_embeddings=dict_len, embedding_dim=embed_size).from_pretrained(dict)
         self.linear = nn.Linear(embed_size, 2 * sent_hidden_size)
-        self.attention = MutilHeadAttention(head_num=head_num, hidden_size=sent_hidden_size, dropout=0)
+        self.attention = MutilHeadAttention(head_num=head_num, hidden_size=sent_hidden_size, dropout=dropout)
 
     def forward(self, input):
         emb_output = self.emb(input)
@@ -249,14 +258,14 @@ class Muil_SentAttNet(nn.Module):
 # the attention net for stock network
 # days stock attention net with muilty head
 class Muil_DaysStockAttNet(nn.Module):
-    def __init__(self, head_num=1, days_hidden_size=16, stock_hidden_size=8, dropout=0.1):
+    def __init__(self, head_num=1, days_hidden_size=16, stock_hidden_size=8, dropout=0):
         super(Muil_DaysStockAttNet, self).__init__()
         self.dropout = dropout
         self.head_num = head_num
         self.days_stock_hidden_size = days_hidden_size
         self.stock_hidden_size = stock_hidden_size
         self.gru = nn.GRU(2 * stock_hidden_size, days_hidden_size, bidirectional=True)
-        self.attention = MutilHeadAttention(head_num, 2 * days_hidden_size, dropout)
+        self.attention = MutilHeadAttention(head_num, days_hidden_size, dropout)
         # self.fc = nn.Linear(2 * days_hidden_size, num_classes)
 
     def forward(self, input):
