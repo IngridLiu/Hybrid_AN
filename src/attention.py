@@ -68,8 +68,10 @@ class Attention():
 
 # basic attention
 class BasicAttention(nn.Module, Attention):
-    def __init__(self, hidden_size):
+    def __init__(self, hidden_size, dropout=0):
         super().__init__()
+        self.hidden_size = hidden_size
+        self.dropout = dropout
         self.attention = Attention()
         self.linear = nn.Linear(2*hidden_size, 2*hidden_size)
 

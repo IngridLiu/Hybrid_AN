@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from src.utils import get_max_lengths, get_evaluation
 from src.dataset import MyDataset
 from src.han_model import *
+from src.stock_han_model import *
 from tensorboardX import SummaryWriter
 import argparse
 import shutil
@@ -18,8 +19,8 @@ def get_args():
     parser = argparse.ArgumentParser(
         """Implementation of the model described in the paper: Hierarchical Attention Networks for Document Classification""")
     # training params
-    parser.add_argument("--model_type", type=str, default="muil_han")    # model_type : ori_han; sent_ori_han; muil_han; sent_muil_han;
-    parser.add_argument("--batch_size", type=int, default=2)
+    parser.add_argument("--model_type", type=str, default="muil_stock_han")    # model_type : ori_han; sent_ori_han; muil_han; sent_muil_han;muil_stock_han
+    parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--num_epoches", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--momentum", type=float, default=0.9)
@@ -33,6 +34,7 @@ def get_args():
     parser.add_argument("--days_hidden_size", type=int, default=16)
     parser.add_argument("--news_hidden_size", type=int, default=8)
     parser.add_argument("--sent_hidden_size", type=int, default=4)
+    parser.add_argument("--stock_hidden_size", type=int, default=16)
     parser.add_argument("--head_num", type=int, default=8)
     parser.add_argument("--days_num", type=int, default=12)
     # data params
@@ -68,14 +70,16 @@ def train(opt):
                              max_news_length=max_news_length,
                              max_sent_length=max_sent_length,
                              max_word_length=max_word_length,
-                             days_num=opt.days_num)
+                             days_num=opt.days_num,
+                             stock_length=stock_length)
     training_generator = DataLoader(training_set, **training_params)
     test_set = MyDataset(data_path=opt.test_set,
                          dict_path=opt.word2vec_path,
                          max_news_length=max_news_length,
                          max_sent_length=max_sent_length,
                          max_word_length=max_word_length,
-                         days_num=opt.days_num)
+                         days_num=opt.days_num,
+                         stock_length=stock_length)
     test_generator = DataLoader(test_set, **test_params)
 
     # model init
@@ -102,6 +106,25 @@ def train(opt):
                          num_classes=training_set.num_classes,
                          pretrained_word2vec_path=opt.word2vec_path,
                          dropout=opt.dropout)
+    elif opt.model_type == "sent_muil_han":
+        model = Sent_Muil_HAN(head_num=opt.head_num,
+                              days_num=opt.days_num,
+                              days_hidden_size=opt.days_hidden_size,
+                              news_hidden_size=opt.news_hidden_size,
+                              sent_hidden_size=opt.sent_hidden_size,
+                              num_classes=training_set.num_classes,
+                              pretrained_word2vec_path=opt.word2vec_path,
+                              dropout=opt.dropout)
+    elif opt.model_type == "muil_stock_han":
+        model = Muil_Stock_HAN(head_num=opt.head_num,
+                               days_num=opt.days_num,
+                               days_hidden_size=opt.days_hidden_size,
+                               news_hidden_size=opt.news_hidden_size,
+                               stock_hidden_size=opt.stock_hidden_size,
+                               stock_length=stock_length,
+                               num_classes=training_set.num_classes,
+                               pretrained_word2vec_path=opt.word2vec_path,
+                               dropout=opt.dropout)
 
 
 
@@ -129,12 +152,10 @@ def train(opt):
                 days_stock = days_stock.cuda()
                 label = label.cuda()
             optimizer.zero_grad()
-            if opt.model_type == "ori_han":
+            if opt.model_type in ["ori_han", "sent_ori_han", "muil_han", "sent_muil_han"]:
                 predictions = model(days_news)
-            elif opt.model_type == "sent_ori_han":
-                predictions = model(days_news)
-            elif opt.model_type == "muil_han":
-                predictions = model(days_news)
+            elif opt.model_type in ["muil_stock_han"]:
+                predictions = model(days_news, days_stock)
             loss = criterion(predictions, torch.tensor(label))
             loss.backward()
             optimizer.step()

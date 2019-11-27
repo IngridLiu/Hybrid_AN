@@ -20,11 +20,23 @@ class Muil_Stock_HAN(nn.Module):
         self.stock_hidden_size = stock_hidden_size
         self.num_classes = num_classes
         self.dropout = dropout
-        self.days_news_att_net = Muil_DaysNewsAttNet(days_hidden_size, news_hidden_size, dropout=dropout)
-        self.news_att_net = Muil_NewsAttNet(pretrained_word2vec_path, news_hidden_size, dropout=dropout)
-        self.days_stock_att_net = Muil_DaysStockAttNet(days_hidden_size, stock_hidden_size, dropout=dropout)
-        self.stock_att_net = Muil_StockAttNet(head_num=head_num, stock_length=stock_length, stock_hidden_size=stock_hidden_size, dropout=dropout)
-        self.fc = nn.Linear(2 * days_hidden_size, num_classes, dropout=dropout)
+        self.days_news_att_net = Muil_DaysNewsAttNet(head_num=head_num,
+                                                     days_hidden_size=days_hidden_size,
+                                                     news_hidden_size=news_hidden_size,
+                                                     dropout=dropout)
+        self.news_att_net = Muil_NewsAttNet(word2vec_path=pretrained_word2vec_path,
+                                            head_num=head_num,
+                                            news_hidden_size=news_hidden_size,
+                                            dropout=dropout)
+        self.days_stock_att_net = Muil_DaysStockAttNet(head_num=head_num,
+                                                       days_hidden_size=days_hidden_size,
+                                                       stock_hidden_size=stock_hidden_size,
+                                                       dropout=dropout)
+        self.stock_att_net = Muil_StockAttNet(head_num=head_num,
+                                              stock_length=stock_length,
+                                              stock_hidden_size=stock_hidden_size,
+                                              dropout=dropout)
+        self.fc = nn.Linear(2 * days_hidden_size, num_classes)
 
     def forward(self, days_newses_input, days_stock_input):
         '''
@@ -50,7 +62,7 @@ class Muil_Stock_HAN(nn.Module):
 
         # stock network
         days_stock_output_list = []
-        days_stock_input = days_stock_input.permute(1, 0 ,2)
+        days_stock_input = days_stock_input.permute(1, 0, 2)
         for stock in days_stock_input:
             # stock: [batch_size, stock_length]
             stock_output = self.stock_att_net(stock)
@@ -58,6 +70,8 @@ class Muil_Stock_HAN(nn.Module):
             days_stock_output_list.append(stock_output)
         days_stock_output = torch.cat(days_stock_output_list, 0).permute(1, 0, 2)
         days_stock_output = self.days_stock_att_net(days_stock_output)
+
+        # whole net
         days_stock_output = days_stock_output.unsqueeze(0)
         days_output_list.append(days_stock_output)
         days_output = torch.cat(days_output_list, 0).permute(1, 0, 2)

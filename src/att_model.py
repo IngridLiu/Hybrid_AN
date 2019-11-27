@@ -47,7 +47,7 @@ class Muil_DaysNewsAttNet(nn.Module):
         self.days_hidden_size = days_hidden_size
         self.news_hidden_size = news_hidden_size
         self.gru = nn.GRU(2 * news_hidden_size, days_hidden_size, bidirectional=True)
-        self.attention = MutilHeadAttention(head_num, 2 * days_hidden_size, dropout)
+        self.attention = MutilHeadAttention(head_num=head_num, hidden_size=days_hidden_size, dropout= dropout)
         # self.fc = nn.Linear(2 * days_hidden_size, num_classes)
 
     def forward(self, input):
@@ -168,7 +168,7 @@ class Sent_Muil_NewsAttNet(nn.Module):
         self.sent_hidden_size = 4
 
         self.gru = nn.GRU(2 * sent_hidden_size, news_hidden_size, bidirectional=True)
-        self.attention = MutilHeadAttention(head_num=head_num, news_hidden_size = news_hidden_size)
+        self.attention = MutilHeadAttention(head_num=head_num, hidden_size=news_hidden_size, dropout=0)
         self.fc = nn.Linear(2 * news_hidden_size, 2 * news_hidden_size)
 
     def forward(self, input):
@@ -223,7 +223,7 @@ class Ori_SentAttNet(nn.Module):
 # Sent Attention Layer with muilty head attention
 class Muil_SentAttNet(nn.Module):
     def __init__(self, word2vec_path, head_num=1, sent_hidden_size=4):
-        super(Muil_NewsAttNet, self).__init__()
+        super(Muil_SentAttNet, self).__init__()
         dict = pd.read_csv(filepath_or_buffer=word2vec_path, header=None, sep=" ", quoting=csv.QUOTE_NONE).values[:, 1:]
         dict_len, embed_size = dict.shape
         dict_len += 1
@@ -238,8 +238,8 @@ class Muil_SentAttNet(nn.Module):
 
     def forward(self, input):
         emb_output = self.emb(input)
-        sent_avg = emb_output.avg(dim=-2)
-        sent_output = self.linear(sent_avg).float()
+        sent_avg = emb_output.mean(dim=-2).float()
+        sent_output = self.linear(sent_avg)
 
         # Attention机制
         output, weight = self.attention(sent_output, sent_output, sent_output)
@@ -249,14 +249,14 @@ class Muil_SentAttNet(nn.Module):
 # the attention net for stock network
 # days stock attention net with muilty head
 class Muil_DaysStockAttNet(nn.Module):
-    def __init__(self, head_num=1, days_stock_hidden_size=16, stock_hidden_size=8, dropout=0.1):
-        super(Muil_DaysNewsAttNet, self).__init__()
+    def __init__(self, head_num=1, days_hidden_size=16, stock_hidden_size=8, dropout=0.1):
+        super(Muil_DaysStockAttNet, self).__init__()
         self.dropout = dropout
         self.head_num = head_num
-        self.days_stock_hidden_size = days_stock_hidden_size
+        self.days_stock_hidden_size = days_hidden_size
         self.stock_hidden_size = stock_hidden_size
-        self.gru = nn.GRU(2 * stock_hidden_size, days_stock_hidden_size, bidirectional=True)
-        self.attention = MutilHeadAttention(head_num, 2 * days_stock_hidden_size, dropout)
+        self.gru = nn.GRU(2 * stock_hidden_size, days_hidden_size, bidirectional=True)
+        self.attention = MutilHeadAttention(head_num, 2 * days_hidden_size, dropout)
         # self.fc = nn.Linear(2 * days_hidden_size, num_classes)
 
     def forward(self, input):
@@ -279,7 +279,7 @@ class Muil_DaysStockAttNet(nn.Module):
 
 # muilty head attention for stock
 class Muil_StockAttNet(nn.Module):
-    def __init__(self, head_num=1, stock_length=9, stock_hidden_size=8):
+    def __init__(self, head_num=1, stock_length=9, stock_hidden_size=8, dropout=0):
         super(Muil_StockAttNet, self).__init__()
         self.head_num = head_num
         self.stock_length = stock_length

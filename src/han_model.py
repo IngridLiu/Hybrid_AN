@@ -12,11 +12,15 @@ class Ori_HAN(nn.Module):
                  days_hidden_size,
                  news_hidden_size,
                  num_classes,
-                 pretrained_word2vec_path):
+                 pretrained_word2vec_path,
+                 dropout):
         super(Ori_HAN, self).__init__()
         self.days_hidden_size = days_hidden_size
         self.news_hidden_size = news_hidden_size
         self.days_num = days_num
+        self.num_classes = num_classes
+        self.pretrained_word2vec_path = pretrained_word2vec_path
+        self.dropout = dropout
         self.days_att_net = Ori_DaysNewsAttNet(days_hidden_size, news_hidden_size)
         self.news_att_net = Ori_NewsAttNet(pretrained_word2vec_path, news_hidden_size)
 
@@ -49,12 +53,16 @@ class Sent_Ori_HAN(nn.Module):
                  news_hidden_size,
                  sent_hidden_size,
                  num_classes,
-                 pretrained_word2vec_path):
+                 pretrained_word2vec_path,
+                 dropout):
         super(Sent_Ori_HAN, self).__init__()
+        self.days_num = days_num
         self.days_hidden_size = days_hidden_size
         self.news_hidden_size = news_hidden_size
         self.sent_hidden_size = sent_hidden_size
-        self.days_num = days_num
+        self.num_classes = num_classes
+        self.pretrained_word2vec_path = pretrained_word2vec_path
+        self.dropout = dropout
         self.days_att_net = Ori_DaysNewsAttNet(days_hidden_size=days_hidden_size, news_hidden_size=news_hidden_size)
         self.news_att_net = Sent_Ori_NewsAttNet(news_hidden_size=news_hidden_size, sent_hidden_size=sent_hidden_size)
         self.sent_att_net = Ori_SentAttNet(word2vec_path=pretrained_word2vec_path, sent_hidden_size=4)
@@ -154,7 +162,8 @@ class Sent_Muil_HAN(nn.Module):
                  news_hidden_size,
                  sent_hidden_size,
                  num_classes,
-                 pretrained_word2vec_path):
+                 pretrained_word2vec_path,
+                 dropout):
         super(Sent_Muil_HAN, self).__init__()
         self.head_num = head_num
         self.days_num = days_num
@@ -162,6 +171,8 @@ class Sent_Muil_HAN(nn.Module):
         self.news_hidden_size = news_hidden_size
         self.sent_hidden_size = sent_hidden_size
         self.num_classes = num_classes
+        self.pretrained_word2vec_path = pretrained_word2vec_path
+        self.dropout = dropout
         self.days_att_net = Muil_DaysNewsAttNet(head_num=head_num, days_hidden_size=days_hidden_size, news_hidden_size=news_hidden_size)
         self.news_att_net = Sent_Muil_NewsAttNet(head_num = head_num, news_hidden_size=news_hidden_size, sent_hidden_size=sent_hidden_size)
         self.sent_att_net = Muil_SentAttNet(word2vec_path=pretrained_word2vec_path, head_num = head_num, sent_hidden_size=sent_hidden_size)
@@ -186,7 +197,7 @@ class Sent_Muil_HAN(nn.Module):
                 news_output = self.sent_att_net(news_input)
                 news_output = news_output.unsqueeze(0)
                 news_output_list.append(news_output)
-            newses_output = torch.cat(news_output_list, 0)
+            newses_output = torch.cat(news_output_list, 0).permute(1, 0, 2)
             # news attention net
             newses_output = self.news_att_net(newses_output)
             newses_output = newses_output.unsqueeze(0)

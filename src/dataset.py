@@ -10,7 +10,7 @@ import numpy as np
 
 class MyDataset(Dataset):
 
-    def __init__(self, data_path, dict_path, max_news_length=10, max_sent_length=10, max_word_length=10, days_num = 12):
+    def __init__(self, data_path, dict_path, max_news_length=10, max_sent_length=10, max_word_length=10, days_num = 12, stock_length=9):
         super(MyDataset, self).__init__()
 
         newses, stocks, labels = [], [], []
@@ -22,7 +22,7 @@ class MyDataset(Dataset):
                 next(reader)  # Skip header row.
             for idx, line in enumerate(reader):
                 news = str(line[-1])
-                stock = [float(x) for x in line[3:-2]]
+                stock = [float(x) for x in line[3:-1]]
                 label = int(line[2])
                 newses.append(news)
                 stocks.append(stock)
@@ -38,6 +38,7 @@ class MyDataset(Dataset):
         self.max_sent_length = max_sent_length
         self.max_word_length = max_word_length
         self.days_num = days_num
+        self.stock_length = stock_length
         self.num_classes = len(set(self.labels))
 
     def __len__(self):
@@ -102,12 +103,10 @@ class MyDataset(Dataset):
 
         # prepare stock date
         if len(days_stock) < days_num:
-            stock_length = len(days_stock[0])
-            extended_stock = [[-1 for _ in range(stock_length)]
+            extended_stock = [[-1 for _ in range(self.stock_length)]
                               for _ in range(days_num - len(days_stock))]
             days_stock.extend(extended_stock)
         days_stock = np.stack(days_stock, axis=0)
-        days_stock += 1
 
         return days_newses_encode.astype(np.int64), days_stock.astype(np.float32), label
 
