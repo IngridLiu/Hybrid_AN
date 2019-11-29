@@ -19,7 +19,7 @@ class Ori_DaysNewsAttNet(nn.Module):
         self.news_hidden_size = news_hidden_size
         self.dropout = dropout
         self.gru = nn.GRU(2 * news_hidden_size, days_hidden_size, bidirectional=True)
-        self.attention = BasicAttention(days_hidden_size=days_hidden_size, dropout=dropout)
+        self.attention = BasicAttention(hidden_size=days_hidden_size, dropout=dropout)
 
     def forward(self, input):
         '''

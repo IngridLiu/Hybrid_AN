@@ -49,7 +49,7 @@ class MyDataset(Dataset):
         label = self.labels[index]
         days_num = self.days_num
         if index < 12:
-            days_newses = self.newses
+            days_newses = self.newses[0: index+1]
             days_stock = self.stocks[0: index+1]
         else:
             days_newses = self.newses[index-days_num+1: index+1]
@@ -111,5 +111,12 @@ class MyDataset(Dataset):
         return days_newses_encode.astype(np.int64), days_stock.astype(np.float32), label
 
 if __name__ == '__main__':
-    test = MyDataset(data_path="../data/test.csv", dict_path="../data/glove.6B.50d.txt")
-    print (test.__getitem__(index=1)[0].shape)
+    test = MyDataset(data_path="/home/ingrid/Data/stockpredict_20191105/train_data.csv", dict_path="/home/ingrid/Model/glove_ch/vectors_50.txt")
+    print(len(test))
+    shape_list = []
+    for idx in range(len(test)):
+        shape = test.__getitem__(idx)[0].shape
+        if shape not in shape_list:
+            shape_list.append({"index":idx, "shape":shape})
+    print(shape_list)
+

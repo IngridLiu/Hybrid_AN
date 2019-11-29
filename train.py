@@ -20,7 +20,7 @@ def get_args():
         """Implementation of the model described in the paper: Hierarchical Attention Networks for Document Classification""")
     # training params
     parser.add_argument("--model_type", type=str, default="ori_han")    # model_type : ori_han; sent_ori_han; muil_han; sent_muil_han;muil_stock_han;sent_muil_stock_han
-    parser.add_argument("--batch_size", type=int, default=2)
+    parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--num_epoches", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--momentum", type=float, default=0.9)
