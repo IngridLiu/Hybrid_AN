@@ -20,12 +20,12 @@ def get_args():
         """Implementation of the model described in the paper: Hierarchical Attention Networks for Document Classification""")
     # training params
     parser.add_argument("--model_type", type=str, default="ori_han")    # model_type : ori_han; sent_ori_han; muil_han; sent_muil_han;muil_stock_han;sent_muil_stock_han
-    parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--num_epoches", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--dropout", type=float, default=0)
-    parser.add_argument("--es_min_delta", type=float, default=0.0,
+    parser.add_argument("--es_min_delta", type=float, default=0.5,
                         help="Early stopping's parameter: minimum change loss to qualify as an improvement")
     parser.add_argument("--es_patience", type=int, default=5,
                         help="Early stopping's parameter: number of epochs with no improvement after which training will be stopped. Set to 0 to disable this technique.")
@@ -42,8 +42,8 @@ def get_args():
     parser.add_argument("--test_set", type=str, default="/home/ingrid/Data/stockpredict_20191105/test_data.csv")
     parser.add_argument("--test_interval", type=int, default=1, help="Number of epoches between testing phases")
     parser.add_argument("--word2vec_path", type=str, default="/home/ingrid/Model/glove_ch/vectors_50.txt")
-    parser.add_argument("--log_path", type=str, default="tensorboard/han_voc")
-    parser.add_argument("--saved_path", type=str, default="trained_models")
+    parser.add_argument("--log_path", type=str, default="/home/ingrid/Projects/PythonProjects/stock_predict/tensorboard/han_voc")
+    parser.add_argument("--saved_path", type=str, default="/home/ingrid/Projects/PythonProjects/stock_predict/trained_models")
     args = parser.parse_args()
     return args
 
@@ -51,6 +51,7 @@ def get_args():
 def train(opt):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(123)
+        print("cuda...")
     else:
         torch.manual_seed(123)
     # training setting
@@ -190,8 +191,10 @@ def train(opt):
                     te_days_stock = te_days_stock.cuda()
                     te_label = te_label.cuda()
                 with torch.no_grad():
-                    if opt.model_type == "ori_han":
+                    if opt.model_type in ["ori_han", "sent_ori_han", "muil_han", "sent_muil_han"]:
                         te_predictions = model(te_days_news)
+                    elif opt.model_type in ["muil_stock_han", "sent_muil_stock_han"]:
+                        te_predictions = model(te_days_news, te_days_stock)
                 te_loss = criterion(te_predictions, torch.tensor(te_label))
                 loss_ls.append(te_loss * num_sample)
                 te_label_ls.extend(te_label.clone().cpu())
@@ -202,7 +205,8 @@ def train(opt):
             test_metrics = get_evaluation(te_label, te_pred.numpy(), list_metrics=["accuracy", "confusion_matrix"])
             output_file.write(
                 "Epoch: {}/{} \nTest loss: {} Test accuracy: {} \nTest confusion matrix: \n{}\n\n".format(
-                    epoch + 1, opt.num_epoches,
+                    epoch + 1,
+                    opt.num_epoches,
                     te_loss,
                     test_metrics["accuracy"],
                     test_metrics["confusion_matrix"]))

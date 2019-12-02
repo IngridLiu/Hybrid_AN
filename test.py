@@ -5,7 +5,7 @@ import os
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from src.utils import get_evaluation
+from src.utils import get_evaluation, get_max_lengths
 from src.dataset import MyDataset
 import argparse
 import shutil
@@ -13,14 +13,48 @@ import csv
 import numpy as np
 
 
+# def get_args():
+#     parser = argparse.ArgumentParser(
+#         """Implementation of the model described in the paper: Hierarchical Attention Networks for Document Classification""")
+#     # training params
+#     parser.add_argument("--model_type", type=str, default="ori_han")    # model_type : ori_han; sent_ori_han; muil_han; sent_muil_han;muil_stock_han;sent_muil_stock_han
+#     parser.add_argument("--batch_size", type=int, default=16)
+#     parser.add_argument("--num_epoches", type=int, default=100)
+#     parser.add_argument("--lr", type=float, default=0.01)
+#     parser.add_argument("--momentum", type=float, default=0.9)
+#     parser.add_argument("--dropout", type=float, default=0)
+#     parser.add_argument("--es_min_delta", type=float, default=0.5,
+#                         help="Early stopping's parameter: minimum change loss to qualify as an improvement")
+#     parser.add_argument("--es_patience", type=int, default=5,
+#                         help="Early stopping's parameter: number of epochs with no improvement after which training will be stopped. Set to 0 to disable this technique.")
+#     # model params
+#     parser.add_argument("--add_stock", type=bool, default=False)
+#     parser.add_argument("--days_hidden_size", type=int, default=16)
+#     parser.add_argument("--news_hidden_size", type=int, default=8)
+#     parser.add_argument("--sent_hidden_size", type=int, default=4)
+#     parser.add_argument("--stock_hidden_size", type=int, default=16)
+#     parser.add_argument("--head_num", type=int, default=8)
+#     parser.add_argument("--days_num", type=int, default=12)
+#     # data params
+#     parser.add_argument("--train_set", type=str, default="/home/ingrid/Data/stockpredict_20191105/train_data.csv")
+#     parser.add_argument("--test_set", type=str, default="/home/ingrid/Data/stockpredict_20191105/test_data.csv")
+#     parser.add_argument("--test_interval", type=int, default=1, help="Number of epoches between testing phases")
+#     parser.add_argument("--word2vec_path", type=str, default="/home/ingrid/Model/glove_ch/vectors_50.txt")
+#     parser.add_argument("--log_path", type=str, default="/home/ingrid/Projects/PythonProjects/stock_predict/tensorboard/han_voc")
+#     parser.add_argument("--saved_path", type=str, default="/home/ingrid/Projects/PythonProjects/stock_predict/trained_models")
+#     args = parser.parse_args()
+#     return args
+
 def get_args():
     parser = argparse.ArgumentParser(
         """Implementation of the model described in the paper: Hierarchical Attention Networks for Document Classification""")
-    parser.add_argument("--batch_size", type=int, default=2)
-    parser.add_argument("--data_path", type=str, default="data/test.csv")
-    parser.add_argument("--pre_trained_model", type=str, default="trained_models/whole_model_han")
-    parser.add_argument("--word2vec_path", type=str, default="data/glove.6B.50d.txt")
-    parser.add_argument("--output", type=str, default="predictions")
+    parser.add_argument("--model_type", type=str, default="ori_han")  # model_type : ori_han; sent_ori_han; muil_han; sent_muil_han;muil_stock_han;sent_muil_stock_han
+    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--train_set", type=str, default="/home/ingrid/Data/stockpredict_20191105/train_data.csv")
+    parser.add_argument("--test_set", type=str, default="/home/ingrid/Data/stockpredict_20191105/test_data.csv")
+    parser.add_argument("--model_path", type=str, default="/home/ingrid/Projects/PythonProjects/stock_predict/trained_models")
+    parser.add_argument("--word2vec_path", type=str, default="/home/ingrid/Model/glove_ch/vectors_50.txt")
+    parser.add_argument("--output", type=str, default="/home/ingrid/Projects/PythonProjects/predictions")
     args = parser.parse_args()
     return args
 
@@ -33,24 +67,36 @@ def test(opt):
         shutil.rmtree(opt.output)
     os.makedirs(opt.output)
     if torch.cuda.is_available():
-        model = torch.load(opt.pre_trained_model)
+        model = torch.load(opt.model_path + os.sep + opt.model_type + "_model")
     else:
-        model = torch.load(opt.pre_trained_model, map_location=lambda storage, loc: storage)
-    test_set = MyDataset(opt.data_path, opt.word2vec_path, model.max_sent_length, model.max_word_length)
+        model = torch.load(opt.model_path + os.sep + opt.model_type + "_model", map_location=lambda storage, loc: storage)
+    max_news_length, max_sent_length, max_word_length = get_max_lengths(opt.train_set)
+    stock_length = 9
+    test_set = MyDataset(data_path=opt.test_set,
+                         dict_path=opt.word2vec_path,
+                         max_news_length=max_news_length,
+                         max_sent_length=max_sent_length,
+                         max_word_length=max_word_length,
+                         days_num=opt.days_num,
+                         stock_length=stock_length)
     test_generator = DataLoader(test_set, **test_params)
+
     if torch.cuda.is_available():
         model.cuda()
     model.eval()
     te_label_ls = []
     te_pred_ls = []
-    for te_feature, te_label in test_generator:
+    for te_days_news, te_days_stock, te_label in test_generator:
         num_sample = len(te_label)
         if torch.cuda.is_available():
-            te_feature = te_feature.cuda()
+            te_feature = te_days_news.cuda()
+            te_days_stock = te_days_stock.cuda()
             te_label = te_label.cuda()
         with torch.no_grad():
-            model._init_hidden_state(num_sample)
-            te_predictions = model(te_feature)
+            if opt.model_type in ["ori_han", "sent_ori_han", "muil_han", "sent_muil_han"]:
+                te_predictions = model(te_days_news)
+            elif opt.model_type in ["muil_stock_han", "sent_muil_stock_han"]:
+                te_predictions = model(te_days_news, te_days_stock)
             te_predictions = F.softmax(te_predictions)
         te_label_ls.extend(te_label.clone().cpu())
         te_pred_ls.append(te_predictions.clone().cpu())
@@ -61,7 +107,7 @@ def test(opt):
     with open(opt.output + os.sep + "predictions.csv", 'w') as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames, quoting=csv.QUOTE_NONNUMERIC)
         writer.writeheader()
-        for i, j, k in zip(te_label, te_pred, test_set.texts):
+        for i, j, k in zip(te_label, te_pred, test_set.newses, test_set.stocks):
             writer.writerow(
                 {'True label': i + 1, 'Predicted label': np.argmax(j) + 1, 'Content': k})
 
