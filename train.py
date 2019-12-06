@@ -2,10 +2,9 @@
 @author: Viet Nguyen <nhviet1009@gmail.com>
 """
 import os
-import torch
-import torch.nn as nn
+import datetime
 from torch.utils.data import DataLoader
-from src.utils import get_max_lengths, get_evaluation
+from src.utils import *
 from src.dataset import MyDataset
 from src.han_model import *
 from src.stock_han_model import *
@@ -20,7 +19,8 @@ def get_args():
         """Implementation of the model described in the paper: Hierarchical Attention Networks for Document Classification""")
     # training params
     parser.add_argument("--model_type", type=str, default="ori_han")    # model_type : ori_han; sent_ori_han; muil_han; sent_muil_han;muil_stock_han;sent_muil_stock_han
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--num_epoches", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--momentum", type=float, default=0.9)
@@ -35,15 +35,15 @@ def get_args():
     parser.add_argument("--news_hidden_size", type=int, default=8)
     parser.add_argument("--sent_hidden_size", type=int, default=4)
     parser.add_argument("--stock_hidden_size", type=int, default=16)
-    parser.add_argument("--head_num", type=int, default=8)
-    parser.add_argument("--days_num", type=int, default=12)
+    parser.add_argument("--head_num", type=int, default=4)
+    parser.add_argument("--days_num", type=int, default=7)
     # data params
-    parser.add_argument("--train_set", type=str, default="/home/ingrid/Data/stockpredict_20191105/train_data.csv")
-    parser.add_argument("--test_set", type=str, default="/home/ingrid/Data/stockpredict_20191105/test_data.csv")
+    parser.add_argument("--train_set", type=str, default= data_root + "train_data_{}.csv".format(days_num))
+    parser.add_argument("--test_set", type=str, default= data_root + "test_data_{}.csv".format(days_num))
     parser.add_argument("--test_interval", type=int, default=1, help="Number of epoches between testing phases")
-    parser.add_argument("--word2vec_path", type=str, default="/home/ingrid/Model/glove_ch/vectors_50.txt")
-    parser.add_argument("--log_path", type=str, default="/home/ingrid/Projects/PythonProjects/stock_predict/tensorboard/han_voc")
-    parser.add_argument("--saved_path", type=str, default="/home/ingrid/Projects/PythonProjects/stock_predict/trained_models")
+    parser.add_argument("--word2vec_path", type=str, default=dict_path)
+    parser.add_argument("--log_path", type=str, default="/home/ingrid/Projects/PythonProjects/stock_predict/tensorboard/")
+    parser.add_argument("--saved_path", type=str, default="/home/ingrid/Projects/PythonProjects/stock_predict/trained_models/")
     args = parser.parse_args()
     return args
 
@@ -55,35 +55,32 @@ def train(opt):
     else:
         torch.manual_seed(123)
     # training setting
-    output_file = open(opt.saved_path + os.sep + "logs.txt", "w")
+    output_file = open(opt.saved_path + "logs.txt", "w")
     output_file.write("Model's parameters: {}".format(vars(opt)))
     training_params = {"batch_size": opt.batch_size,
+                       "num_workers": opt.num_workers,
                        "shuffle": True,
+                       "pin_memory": True,
                        "drop_last": True}
     test_params = {"batch_size": opt.batch_size,
+                   "num_workers": opt.num_workers,
                    "shuffle": False,
+                   "pin_memory": True,
                    "drop_last": False}
     # training dataset info
-    max_news_length, max_sent_length, max_word_length = get_max_lengths(opt.train_set)
-    stock_length = 9
-    training_set = MyDataset(data_path=opt.train_set,
-                             dict_path=opt.word2vec_path,
-                             max_news_length=max_news_length,
-                             max_sent_length=max_sent_length,
-                             max_word_length=max_word_length,
-                             days_num=opt.days_num,
-                             stock_length=stock_length)
+    # max_news_length, max_sent_length, max_word_length = get_max_lengths(opt.train_set)
+    # stock_length = 9
+
+    data_init_time = datetime.datetime.now()
+    training_set = MyDataset(data_path=opt.train_set)
     training_generator = DataLoader(training_set, **training_params)
-    test_set = MyDataset(data_path=opt.test_set,
-                         dict_path=opt.word2vec_path,
-                         max_news_length=max_news_length,
-                         max_sent_length=max_sent_length,
-                         max_word_length=max_word_length,
-                         days_num=opt.days_num,
-                         stock_length=stock_length)
+    test_set = MyDataset(data_path=opt.test_set)
     test_generator = DataLoader(test_set, **test_params)
+    data_end_time = datetime.datetime.now()
+    print("the data loading time is: {}s...".format((data_end_time - data_init_time).seconds))
 
     # model init
+    model_init_time = datetime.datetime.now()
     if opt.model_type == "ori_han":
         model = Ori_HAN(days_num=opt.days_num,
                         days_hidden_size=opt.days_hidden_size,
@@ -137,16 +134,21 @@ def train(opt):
                                     num_classes=training_set.num_classes,
                                     pretrained_word2vec_path=opt.word2vec_path,
                                     dropout=opt.dropout)
+    model_end_time = datetime.datetime.now()
+    print("the model init time is: {}s...".format((model_end_time - model_init_time).seconds))
 
     # other setting
-    if os.path.isdir(opt.log_path):
-        shutil.rmtree(opt.log_path) # 递归删除文件夹下的所有子文件夹
-    os.makedirs(opt.log_path)
-    writer = SummaryWriter(opt.log_path)
+    if os.path.isdir(opt.log_path + opt.model_type):
+        shutil.rmtree(opt.log_path + opt.model_type) # 递归删除文件夹下的所有子文件夹
+    os.makedirs(opt.log_path + opt.model_type)
+    writer = SummaryWriter(opt.log_path + opt.model_type)
 
     # 模型训练相关信息初始化
     if torch.cuda.is_available():
         model.cuda()
+        print("model use cuda...")
+
+
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=opt.lr, momentum=opt.momentum)
     best_loss = 1e5
@@ -155,12 +157,18 @@ def train(opt):
     num_iter_per_epoch = len(training_generator)
 
     # 训练模型
+    print("start to train model...")
     for epoch in range(opt.num_epoches):
+        dataloader_init_time = datetime.datetime.now()
         for iter, (days_news, days_stock, label) in enumerate(training_generator):
+            dataloader_end_time = datetime.datetime.now()
+            print("the dataloader loading time is: {}s...".format((dataloader_end_time - dataloader_init_time).seconds))
             if torch.cuda.is_available():
                 days_news = days_news.cuda()
                 days_stock = days_stock.cuda()
                 label = label.cuda()
+                print("data use cuda...")
+            training_init_time = datetime.datetime.now()
             optimizer.zero_grad()
             if opt.model_type in ["ori_han", "sent_ori_han", "muil_han", "sent_muil_han"]:
                 predictions = model(days_news)
@@ -179,6 +187,8 @@ def train(opt):
                 loss, training_metrics["accuracy"]))
             writer.add_scalar('Train/Loss', loss, epoch * num_iter_per_epoch + iter)
             writer.add_scalar('Train/Accuracy', training_metrics["accuracy"], epoch * num_iter_per_epoch + iter)
+            training_end_time = datetime.datetime.now()
+            print("the training time is: {}s...".format((training_end_time - training_init_time).seconds))
         if epoch % opt.test_interval == 0:
             model.eval()
             loss_ls = []
@@ -221,7 +231,7 @@ def train(opt):
             if te_loss + opt.es_min_delta < best_loss:
                 best_loss = te_loss
                 best_epoch = epoch
-                torch.save(model, opt.saved_path + os.sep + opt.model_type + "_model")
+                torch.save(model, opt.saved_path + opt.model_type + "_model")
 
             # Early stopping
             if epoch - best_epoch > opt.es_patience > 0:

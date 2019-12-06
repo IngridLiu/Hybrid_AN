@@ -9,6 +9,11 @@ from sklearn import metrics
 from jieba import cut
 import numpy as np
 
+days_num = 12
+stock_length = 9
+data_root = "/home/ingrid/Data/stockpredict_test/"
+dict_path = "/home/ingrid/Model/glove_ch/vectors_50.txt"
+
 def get_evaluation(y_true, y_prob, list_metrics):
     y_pred = np.argmax(y_prob, -1)
     output = {}
@@ -53,6 +58,19 @@ def get_max_lengths(data_path):
     return sorted_news_length[int(0.8*len(sorted_news_length))], \
            sorted_sent_length[int(0.8 * len(sorted_sent_length))], \
            sorted_word_length[int(0.8*len(sorted_word_length))]
+
+
+
+# # 新建DataLoaderX类
+# from torch.utils.data import DataLoader
+# from prefetch_generator import BackgroundGenerator
+#
+# class DataLoaderX(DataLoader):
+#
+#     def __iter__(self):
+#         return BackgroundGenerator(super().__iter__())
+
+
 
 if __name__ == "__main__":
     word, sent = get_max_lengths("../data/test.csv")
